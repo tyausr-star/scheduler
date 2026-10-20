@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>超級排班表</title>
+<style>
+:root{--bg:#fff;--fg:#1c1c1e;--mut:#6b6b70;--card:#f4f4f6;--bd:#d9d9de;--ac:#2f6fed;--e:#ffe9a8;--l:#c9d8ff;--m:#e3d4ff;--o:#e6e6ea;--r:#ff9c9c;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#161618;--fg:#f0f0f2;--mut:#9a9aa0;--card:#232326;--bd:#3a3a40;--ac:#6b9bff;--e:#5a4a14;--l:#1f3566;--m:#3f2d66;--o:#2c2c30;--r:#a33}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#161618;--fg:#f0f0f2;--mut:#9a9aa0;--card:#232326;--bd:#3a3a40;--ac:#6b9bff;--e:#5a4a14;--l:#1f3566;--m:#3f2d66;--o:#2c2c30;--r:#a33}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;padding:12px;background:var(--bg);color:var(--fg);font:14px/1.5 -apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+h1{font-size:20px;margin:4px 0 10px}h2{font-size:15px;margin:14px 0 6px}
+.card{background:var(--card);border-radius:12px;padding:10px;margin-bottom:10px}
+label{display:flex;align-items:center;gap:6px;margin:4px 0;flex-wrap:wrap}
+input,select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px;min-width:0}
+input[type=number]{width:64px}input[type=checkbox]{width:18px;height:18px}
+.rw{display:grid;grid-template-columns:80px 70px 56px 1fr;gap:4px;margin-bottom:4px}
+.rw .sp{grid-column:1/-1}
+.rw input[type=number]{width:100%}
+button{font:inherit;border:0;border-radius:10px;padding:10px 14px;background:var(--ac);color:#fff;margin:4px 6px 4px 0}
+button.s{background:var(--o);color:var(--fg)}
+small{color:var(--mut);display:block}
+.sc{overflow-x:auto;max-width:100%}
+table{border-collapse:collapse;font-size:12px;text-align:center}
+th,td{border:1px solid var(--bd);min-width:30px;padding:3px 2px}
+th.nm{position:sticky;left:0;background:var(--bg);z-index:1;min-width:58px;text-align:left}
+th.wk{color:#d33}th.dv{background:color-mix(in srgb,#e8a33d 28%,var(--bg))}.ws{border-left:3px solid var(--fg)}
+.e{background:var(--e)}.l{background:var(--l)}.m{background:var(--m)}.o{background:var(--o);color:var(--mut)}.x{font-weight:700}.v{white-space:nowrap;background:color-mix(in srgb,#3bb273 35%,var(--bg));color:var(--fg);cursor:pointer}
+.r{outline:2px solid var(--r);outline-offset:-2px;background:var(--r)}
+.warn{color:#c33;margin:4px 0}.ok{color:#2a8a3a}.nt{color:var(--ac);margin:4px 0}
+</style></head><body>
+<h1>超級排班表</h1>
+<div class="card">
+<label>開檔日 <input type="date" id="start" value="2026-11-01"> 天數 <input type="number" id="days" value="30" min="7" max="62"></label>
+<label>禁休日（幾號，全店到齊、無人可休） <input id="ban" placeholder="例：1,2,15"></label>
+<label>大到貨日（幾號） <input id="big" placeholder="例：10,25"> 人力底線 <input type="number" id="bf" value="6" min="4" max="30"> 人</label>
+<label>國定假日（幾號） <input id="hol" placeholder="例：10"></label>
+<small>國定假日有休的人，該週會是「國、例、休」3天休（沒有其他請假時）；有上班的人不另補（領雙倍薪）</small>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:4px 0">到貨日（每週）<label style="margin:0"><input type="checkbox" id="dw0" checked>日</label><label style="margin:0"><input type="checkbox" id="dw1">一</label><label style="margin:0"><input type="checkbox" id="dw2">二</label><label style="margin:0"><input type="checkbox" id="dw3">三</label><label style="margin:0"><input type="checkbox" id="dw4" checked>四</label><label style="margin:0"><input type="checkbox" id="dw5" checked>五</label><label style="margin:0"><input type="checkbox" id="dw6" checked>六</label></div>
+<small>到貨日人力需求高，排休時盡量避開，例、休優先排在其他日子；表頭橘底為到貨日</small>
+<label>總人數 <input type="number" id="n" min="1" max="30"> <small id="cnt" style="display:inline"></small></label>
+<b style="display:block;margin-top:8px">店長設定</b>
+<label><input type="checkbox" id="mo" checked> 開檔日不休</label>
+<label><input type="checkbox" id="mw" checked> 開檔週的週六、日不休（系統自動抓開檔日所在的週日到週六）</label>
+<label><input type="checkbox" id="mh"> 所有週六、日都不休</label>
+<label>店長不能休的日期（幾號） <input id="mban" placeholder="例：8,15,22"></label>
+<label><input type="checkbox" id="mbal" checked> 早晚班盡量平均（公司要求）</label>
+<small>固定規範：早 9-18／10點 10-19／晚 14-23；晚班隔天只能上10點或晚班；每天至少4人</small>
+</div>
+<div class="card"><b>人員</b>
+<small>欄位：工號／角色／不想連上幾天（填4＝最多連上3天；上限7，依勞基法最多連上6天）／指定。指定寫法：休:5,6 早:10 晚:11（數字為幾號）。長假欄填日期或區間，如 10-15,20，標為「假」；一例一休一定另外標出，整週請假時會先從假日中標出例、休，其餘才標假。</small>
+<div id="ros" style="margin-top:6px"></div></div>
+<button id="go">排班</button><button class="s" id="re">重新排（換一種）</button><button class="s" id="cp">複製表格</button>
+<div id="warn"></div><div id="out"></div>
+<div id="cal" class="card" style="display:none"><b>匯入公司行事曆</b><small>可上傳 .ics／.csv／.txt，或直接貼上行事曆文字（每行含日期與標題，如「11/10～11/16 換季」）。系統會抓：專案週、換檔週、第一單、偷跑、延檔、空檔、POP日、換季。</small><input type="file" id="calf" accept=".ics,.csv,.txt,text/calendar,text/csv,text/plain"><textarea id="caltxt" rows="4" style="width:100%;box-sizing:border-box;margin-top:6px;font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px"></textarea><button id="calgo">套用行事曆</button><div id="calout"></div></div>
+<script>
+const $=s=>document.querySelector(s),WD='日一二三四五六',CL={'早':'e','晚':'l','10':'m','休':'o','例':'o x','國':'o x'};
+let R=[],P,days,weeks,ban,big,bf,hol,dw,mbal,last;
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+const def=()=>{const a=[{id:'店長',role:'店長',lim:4,sp:''},{id:'A01',role:'值班',lim:4,sp:''},{id:'A02',role:'值班',lim:4,sp:''}];for(let i=3;i<=8;i++)a.push({id:'A0'+i,role:'一般',lim:4,sp:''});return a};
+try{const s=JSON.parse(localStorage.getItem('sch')||'null');if(s){R=s.R||[];for(const k in s.f)$('#'+k).value=s.f[k];for(const k in s.c)$('#'+k).checked=s.c[k]}}catch(e){}
+if(!R.length)R=def();
+function save(){try{const f={},c={};['start','days','ban','big','bf','mban','hol','caltxt'].forEach(k=>f[k]=$('#'+k).value);['mo','mh','mw','mbal','dw0','dw1','dw2','dw3','dw4','dw5','dw6'].forEach(k=>c[k]=$('#'+k).checked);localStorage.setItem('sch',JSON.stringify({R,f,c}))}catch(e){}}
+function rr(){$('#cnt').textContent=['店長','值班','一般'].map(r=>r+R.filter(p=>p.role==r).length).join('／');if(document.activeElement!==$('#n'))$('#n').value=R.length;$('#ros').innerHTML=R.map((p,i)=>`<div class="rw"><input data-i="${i}" data-k="id" value="${esc(p.id)}" placeholder="工號"><select data-i="${i}" data-k="role">${['一般','值班','店長'].map(r=>`<option${r==p.role?' selected':''}>${r}</option>`).join('')}</select><input type="number" min="2" max="7" data-i="${i}" data-k="lim" value="${p.lim}"><input class="sp" data-i="${i}" data-k="sp" value="${esc(p.sp)}" placeholder="指定：休:5,6 早:10 晚:11"><input class="sp" data-i="${i}" data-k="lv" value="${esc(p.lv||'')}" placeholder="長假（幾號）：10-15,20 → 自動標為假"></div>`).join('')}
+['input','change'].forEach(ev=>$('#ros').addEventListener(ev,e=>{const t=e.target,i=+t.dataset.i,k=t.dataset.k;if(k){R[i][k]=k=='lim'?(+t.value||4):t.value;if(k=='role')$('#cnt').textContent=['店長','值班','一般'].map(r=>r+R.filter(p=>p.role==r).length).join('／')}}));
+$('#n').oninput=()=>{const v=+$('#n').value;if(v>R.length&&v<=30)$('#n').onchange()};$('#n').onchange=()=>{const n=Math.max(1,Math.min(30,+$('#n').value||1));while(R.length<n)R.push({id:'A'+String(R.length+1).padStart(2,'0'),role:'一般',lim:4,sp:''});R.length=n;rr()};
+rr();
+const LV=['假','年假','事假','喪假','病假','婚假','公假','生理假'],isO=v=>v=='休'||v=='例'||v=='國'||v=='補'||LV.includes(v);
+const nums=s=>(String(s).match(/\d+/g)||[]).map(Number);
+function spec(t){const o={off:[],E:[],L:[]};String(t).replace(/(休|早|晚)\s*[:：]?\s*([\d,，、\s]*\d)/g,(m,k,v)=>{({休:o.off,早:o.E,晚:o.L})[k].push(...nums(v))});return o}
+function leave(t){const r=[...String(t||'').matchAll(/(\d+)\s*[-~到至]\s*(\d+)|(\d+)/g)];return days.map(d=>r.some(m=>m[3]?+m[3]==d.dom:(+m[1]<=+m[2]?d.dom>=+m[1]&&d.dom<=+m[2]:d.dom>=+m[1]||d.dom<=+m[2])))}
+const shuf=a=>{for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+const combos=(a,k)=>k<=0?[[]]:k==1?a.map(x=>[x]):a.flatMap((x,i)=>a.slice(i+1).map(y=>[x,y]));
+function attempt(){
+ const D=days.length,N=P.length,supN=P.filter(p=>p.sup).length,mo=$('#mo').checked,mh=$('#mh').checked,mw=$('#mw').checked,mb=new Set(nums($('#mban').value));
+ const off=P.map(p=>days.map((d,k)=>p.sp.off.includes(d.dom)||p.lv[k]?1:0)),oc=Array(D).fill(0),so=Array(D).fill(0);
+ P.forEach((p,i)=>off[i].forEach((v,k)=>{if(v){oc[k]++;if(p.sup)so[k]++}}));
+ for(const w of weeks){
+  const need=w.length>=7?2:w.length>=4?1:0;
+  for(const i of shuf(P.map((_,i)=>i))){
+   const p=P[i],k0=Math.max(0,need-w.filter(k=>off[i][k]&&!p.lv[k]).length);if(!k0)continue;
+   const al=w.filter(k=>{const d=days[k];return !off[i][k]&&!ban.has(d.dom)&&!p.sp.E.includes(d.dom)&&!p.sp.L.includes(d.dom)&&!(p.role=='店長'&&((mo&&k==0)||(mh&&(d.wd==0||d.wd==6))||mb.has(d.dom)||(mw&&weeks[0].includes(k)&&(d.wd==0||d.wd==6))))});
+   let bc=[],bv=1e9;
+   for(const c of combos(al,Math.min(k0,al.length))){
+    let v=Math.random()*2;
+    for(const k of c){const wk=N-oc[k]-1;v+=oc[k]*(dw[days[k].wd]?6:3);const fl=big.has(days[k].dom)?Math.max(4,Math.min(bf,N)):4;if(wk<fl)v+=100*(fl-wk);if(p.sup){const sw=supN-so[k]-1;if(sw<2)v+=100*(2-sw)}}
+    let run=0;for(let k=w[0]-1;k>=0&&!off[i][k];k--)run++;
+    for(const k of w){if(off[i][k]||c.includes(k))run=0;else if(++run>p.lim-1)v+=60}
+    v+=run*.7;if(v<bv){bv=v;bc=c}}
+   for(const k of bc){off[i][k]=1;oc[k]++;if(p.sup)so[k]++}
+  }}
+ if(hol.size){const okd=(p,k)=>{const d=days[k];return !ban.has(d.dom)&&!hol.has(d.dom)&&!p.sp.E.includes(d.dom)&&!p.sp.L.includes(d.dom)&&!(p.role=='店長'&&((mo&&k==0)||(mh&&(d.wd==0||d.wd==6))||mb.has(d.dom)||(mw&&weeks[0].includes(k)&&(d.wd==0||d.wd==6))))};
+for(const w of weeks)for(const i of shuf(P.map((_,i)=>i))){const p=P[i];let ex=w.filter(k=>hol.has(days[k].dom)&&off[i][k]&&!p.lv[k]).length;
+ while(ex-->0){let bk=-1,bv=1e9;for(const k of w){if(off[i][k]||!okd(p,k))continue;
+  let v=Math.random()*2+oc[k]*3;const wk=N-oc[k]-1,fl=big.has(days[k].dom)?Math.max(4,Math.min(bf,N)):4;if(wk<fl)v+=100*(fl-wk);if(p.sup&&supN-so[k]-1<2)v+=100;
+  off[i][k]=1;let r=0;off[i].forEach(x=>{r=x?0:r+1;if(r>p.lim-1)v+=60});off[i][k]=0;
+  if(v<bv){bv=v;bk=k}}
+ if(bk<0)break;off[i][bk]=1;oc[bk]++;if(p.sup)so[bk]++}}}
+ let sc=0;
+ P.forEach((p,i)=>{let r=0;off[i].forEach(v=>{r=v?0:r+1;if(r>p.lim-1)sc+=100})});
+ for(let k=0;k<D;k++){const wk=N-oc[k],fl=big.has(days[k].dom)?Math.max(4,Math.min(bf,N)):4;if(wk<fl)sc+=100*(fl-wk);if(supN-so[k]<2)sc+=100*(2-(supN-so[k]));sc+=oc[k]*oc[k]*(big.has(days[k].dom)?5:.1)}
+ return{off,sc}}
+function assign(off){
+ const D=days.length,E=P.map(()=>0),L=P.map(()=>0),sh=P.map(()=>Array(D).fill('')),warns=[];
+ days.forEach((d,k)=>{
+  const W=P.map((_,i)=>i).filter(i=>!off[i][k]),n=W.length;
+  let e,l;if(n>=4){e=2+((n-4)>>1);l=2+((n-3)>>1)}else if(n==3){e=2;l=1}else{e=Math.min(n,1);l=n-e}
+  const S={a:[],b:[]},rest=[];
+  W.forEach(i=>{const sp=P[i].sp;if(sp.E.includes(d.dom))S.a.push(i);else if(sp.L.includes(d.dom))S.b.push(i);else rest.push(i)});
+  const lk=i=>k>0&&sh[i][k-1]=='晚',key=i=>(P[i].role=='店長'&&mbal?4:1)*(E[i]-L[i])+(lk(i)?100:k&&sh[i][k-1]&&sh[i][k-1]!='休'&&sh[i][k-1]!='例'?-.6:0)+Math.random()*.1;
+  rest.sort((a,b)=>key(a)-key(b));
+  const hs=a=>a.some(i=>P[i].sup),sups=rest.filter(i=>P[i].sup),nA=!hs(S.a),nB=!hs(S.b),take=i=>rest.splice(rest.indexOf(i),1);
+  if(nA&&nB&&sups.length>=2){S.a.push(sups[0]);take(sups[0]);const z=sups[sups.length-1];S.b.push(z);take(z)}
+  else if(nA&&nB&&sups.length==1){(key(sups[0])<0?S.a:S.b).push(sups[0]);take(sups[0])}
+  else if(nA&&sups.length){S.a.push(sups[0]);take(sups[0])}
+  else if(nB&&sups.length){const z=sups[sups.length-1];S.b.push(z);take(z)}
+  while(rest.length){const i=rest.shift();(S.a.length<e?S.a:S.b).push(i)}
+  if(!hs(S.a))warns.push(`${d.dom}號早班缺值班/店長`);if(!hs(S.b))warns.push(`${d.dom}號晚班缺值班/店長`);
+  const t=n==3&&S.a.length>=2&&!S.a.some(lk)?(S.a.find(i=>!P[i].sup)??S.a[1]):-1;
+  S.a.forEach(i=>{if(lk(i)&&P[i].sp.E.includes(d.dom))warns.push(`${P[i].id} ${d.dom}號指定早班，但前一天是晚班，只能上10點`);sh[i][k]=i==t||lk(i)?'10':'早';E[i]++});S.b.forEach(i=>{sh[i][k]='晚';L[i]++});
+ });
+ P.forEach((p,i)=>weeks.forEach(w=>{const nd=w.length>=7?2:w.length>=4?1:0,cd=w.filter(k=>off[i][k]&&!p.lv[k]&&!hol.has(days[k].dom)),r=cd.slice(0,nd),ex=w.filter(k=>hol.has(days[k].dom)&&off[i][k]&&!p.lv[k]).length;w.filter(k=>p.lv[k]&&!hol.has(days[k].dom)).sort((a,b)=>((days[a].wd%6?1:0)-(days[b].wd%6?1:0))||a-b).slice(0,Math.max(0,nd-r.length)).forEach(k=>r.push(k));r.sort((a,b)=>a-b);w.forEach(k=>{if(off[i][k])sh[i][k]=hol.has(days[k].dom)?'國':'假'});r.forEach((k,j)=>sh[i][k]=j==r.length-1?'例':'休')}));
+ return{sh,warns}}
+function gen(again){
+ const s=new Date($('#start').value+'T00:00:00'),nd=Math.max(7,Math.min(62,+$('#days').value||30));
+ if(isNaN(s))return;days=[];for(let i=0;i<nd;i++){const d=new Date(s);d.setDate(s.getDate()+i);days.push({dom:d.getDate(),wd:d.getDay(),m:d.getMonth()+1,y:d.getFullYear()})}
+ ban=new Set(nums($('#ban').value));big=new Set(nums($('#big').value));bf=+$('#bf').value||4;hol=new Set(nums($('#hol').value));dw=[0,1,2,3,4,5,6].map(i=>$('#dw'+i).checked);mbal=$('#mbal').checked;P=R.map(p=>({...p,sup:p.role!='一般',sp:spec(p.sp),lv:leave(p.lv),lim:Math.min(7,Math.max(2,+p.lim||4))}));
+ weeks=[];days.forEach((d,k)=>{if(!k||d.wd==0)weeks.push([]);weeks[weeks.length-1].push(k)});
+ let b=null;for(let t=0;t<400;t++){const o=attempt();if(!b||o.sc<b.sc)b=o}
+ const{sh,warns}=assign(b.off);last=sh;save();P.forEach((p,i)=>weeks.forEach(w=>{const nd=w.length>=7?2:w.length>=4?1:0,c=w.filter(k=>sh[i][k]=='例'||sh[i][k]=='休').length;if(c<nd)warns.push(`${p.id}：${days[w[0]].dom}號起這週一例一休不足（禁休、店長限制或長假衝突）`)}));if(mbal)P.forEach((p,i)=>{if(p.role=='店長'){const e=sh[i].filter(v=>v=='早'||v=='10').length,l=sh[i].filter(v=>v=='晚').length;if(Math.abs(e-l)>2)warns.push(`${p.id}（店長）早${e}天晚${l}天，差距偏大（公司要求盡量平均）`)}});
+ const D=days.length;
+ P.forEach((p,i)=>{let r=0;sh[i].forEach((v,k)=>{r=isO(v)?0:r+1;if(r>p.lim-1)warns.push(`${p.id}：${days[k].dom}號起連上${r}天，超過上限`)})});
+ for(let k=0;k<D;k++){const n=P.filter((_,i)=>!isO(sh[i][k])).length;const fl=big.has(days[k].dom)?Math.max(4,Math.min(bf,P.length)):4;if(n<fl)warns.push(`${days[k].dom}號只有${n}人上班（低於${fl}人${fl>4?'，大到貨底線':''}）`)}
+ $('#warn').innerHTML=warns.length?[...new Set(warns)].map(w=>`<div class="warn">⚠ ${esc(w)}</div>`).join(''):'<div class="ok">✓ 所有規則皆已滿足</div>';
+ let h=`<h2>班表</h2><div class="sc"><table><tr><th class="nm">工號</th><th>早</th><th>晚</th><th>假</th>${days.map((d,k)=>`<th class="${d.wd%6?'':'wk'}${dw[d.wd]?' dv':''}${k&&d.wd==0?' ws':''}">${d.dom}<br>${WD[d.wd]}${ban.has(d.dom)?'<br>禁':big.has(d.dom)?'<br>貨':hol.has(d.dom)?'<br>國':''}</th>`).join('')}</tr>`;
+ P.forEach((p,i)=>{let r=0;h+=`<tr><th class="nm">${esc(p.id)}${p.sup?`<small>${p.role}</small>`:''}</th><td><b>${sh[i].filter(v=>v=='早'||v=='10').length}</b></td><td><b>${sh[i].filter(v=>v=='晚').length}</b></td><td>${sh[i].filter(v=>LV.includes(v)).length}</td>`+days.map((d,k)=>{const v=sh[i][k],o=isO(v);r=o?0:r+1;return`<td data-i="${i}" data-k="${k}" class="${CL[v]||(LV.includes(v)?'o v':'')}${r>p.lim-1?' r':''}${k&&d.wd==0?' ws':''}">${v}</td>`}).join('')+'</tr>'});
+ ['早','晚'].forEach(z=>h+=`<tr><th class="nm">${z}人數</th><td></td><td></td><td></td>${days.map((d,k)=>`<td class="${k&&d.wd==0?'ws':''}">${P.filter((_,i)=>z=='早'?(sh[i][k]=='早'||sh[i][k]=='10'):sh[i][k]=='晚').length}</td>`).join('')}</tr>`);
+ h+='</table></div><h2>統計</h2><div class="sc"><table><tr><th>工號</th><th>早+10點</th><th>其中10點</th><th>晚</th><th>休/例</th><th>假</th></tr>'+P.map((p,i)=>{const c=x=>sh[i].filter(v=>x.includes(v)).length;return`<tr><td>${esc(p.id)}</td><td>${c(['早','10'])}</td><td>${c(['10'])}</td><td>${c(['晚'])}</td><td>${c(['休','例'])}</td><td>${c(LV)}</td></tr>`}).join('')+'</table></div><small>黃＝早班9-18　紫＝10點班10-19（晚接早只能上這班）　藍＝晚班14-23　灰＝休/例　紅框＝超過連上上限　禁＝禁休日全店到齊　貨＝大到貨日（人力底線）　綠＝長假（點一下可切換年假/事假/喪假/病假/婚假/公假/生理假）　國＝國定假日休（有休的人該週為國、例、休3天）　橘底表頭＝每週到貨日。禮拜日到禮拜六為一週，粗線為週起點；不足7天的畸零週只排1天休。</small>';
+ $('#out').innerHTML=h;showCal()}
+$('#go').onclick=gen;$('#re').onclick=gen;
+const KW=[[/專案[週周]/,'專案週','n'],[/換檔[週周]/,'換檔週','n'],[/第一單/,'第一單','n'],[/偷跑/,'偷跑','p'],[/延檔/,'延檔','p'],[/空檔/,'空檔','p'],[/pop/i,'POP日','r'],[/換季/,'換季','r']];
+function parseCal(t){const ev=[],D=(y,m,d)=>new Date(+y,m-1,+d);
+ if(/BEGIN:VEVENT/.test(t)){t.replace(/\r?\n[ \t]/g,'').split('BEGIN:VEVENT').slice(1).forEach(b=>{
+  const L=b.split(/\r?\n/),g=k=>{const l=L.find(x=>x.startsWith(k));return l?l.slice(l.indexOf(':')+1).trim():''},
+  d8=x=>{const m=x.match(/(\d{4})(\d\d)(\d\d)/);return m?D(m[1],m[2],m[3]):null},
+  a=d8(g('DTSTART')),ed=g('DTEND');let z=d8(ed)||a;
+  if(a&&z&&/^\d{8}$/.test(ed))z=new Date(z-864e5);if(a&&z<a)z=a;
+  if(a)ev.push({a,z,t:g('SUMMARY')+' '+g('DESCRIPTION')})});return ev}
+ const y0=days[0].y,m0=days[0].m;
+ t.split(/\r?\n/).forEach(ln=>{const ds=[...ln.matchAll(/(?:(\d{4})[-\/.年])?(\d{1,2})[-\/.月](\d{1,2})日?/g)].map(m=>{let y=m[1]?+m[1]:y0;if(!m[1]){if(+m[2]<m0-6)y++;else if(+m[2]>m0+6)y--}return D(y,m[2],m[3])});
+  if(ds.length){const z=ds[ds.length-1];ev.push({a:ds[0],z:z<ds[0]?ds[0]:z,t:ln})}});
+ return ev}
+function showCal(){if(!days)return;$('#cal').style.display='block';const t=$('#caltxt').value,o=$('#calout');if(!t.trim()){o.innerHTML='';return}
+ const Z=days[days.length-1],ws=new Date(days[0].y,days[0].m-1,days[0].dom),we=new Date(Z.y,Z.m-1,Z.dom),ds=x=>`${x.getMonth()+1}/${x.getDate()}（${WD[x.getDay()]}）`,md=x=>`${x.getMonth()+1}/${x.getDate()}`,rows=[];
+ parseCal(t).forEach(e=>{if(e.z<ws||e.a>we)return;KW.forEach(([re,lb,ty])=>{if(!re.test(e.t))return;const rg=+e.a==+e.z?ds(e.a):ds(e.a)+'～'+ds(e.z);let m,c='nt';
+  if(lb=='POP日'){m=`${rg}為POP日，是否注意人力需求？`;c='warn'}else if(lb=='換季'){m=`${md(e.a)}到${md(e.z)}為換季，是否注意人力需求？`;c='warn'}else m=`${ty=='p'?'【換價排程】':'【提醒】'}${lb}：${rg}`;
+  rows.push({a:+e.a,h:`<div class="${c}">${c=='warn'?'⚠':'📌'} ${esc(m)}</div>`})})});
+ rows.sort((x,y)=>x.a-y.a);
+ o.innerHTML='<h2>公司行事曆提醒</h2>'+(rows.length?rows.map(r=>r.h).join(''):'<small>此期間沒有抓到專案週、換檔週、第一單、偷跑、延檔、空檔、POP日、換季。</small>')}
+$('#calgo').onclick=()=>{save();showCal()};
+$('#calf').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$('#caltxt').value=r.result;save();showCal()};r.readAsText(f)};
+$('#out').addEventListener('click',e=>{const t=e.target.closest('td[data-i]');if(!t||!last)return;const i=+t.dataset.i,k=+t.dataset.k,j=LV.indexOf(last[i][k]);if(j<0)return;last[i][k]=LV[(j+1)%LV.length];t.textContent=last[i][k]});
+$('#cp').onclick=()=>{if(!last)return;const t=['工號\t'+days.map(d=>d.dom).join('\t'),...P.map((p,i)=>p.id+'\t'+last[i].join('\t'))].join('\n');try{navigator.clipboard.writeText(t);$('#cp').textContent='已複製'}catch(e){}};
+</script></body></html>
