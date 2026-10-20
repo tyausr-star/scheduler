@@ -14,7 +14,7 @@ label{display:flex;align-items:center;gap:6px;margin:4px 0;flex-wrap:wrap}
 input,select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px;min-width:0}
 input[type=number]{width:64px}input[type=checkbox]{width:18px;height:18px}
 .rw{display:grid;grid-template-columns:80px 70px 56px 1fr;gap:4px;margin-bottom:4px}
-.rw .sp{grid-column:1/-1}
+.rw{grid-template-columns:80px 70px 56px minmax(100px,1fr)}.ptrow{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.ptrow input[data-field="dates"]{width:140px}.ptbox{border-top:1px solid var(--bd);padding-top:6px}.rw .sp{grid-column:1/-1}
 .rw input[type=number]{width:100%}
 button{font:inherit;border:0;border-radius:10px;padding:10px 14px;background:var(--ac);color:#fff;margin:4px 6px 4px 0}
 button.s{background:var(--o);color:var(--fg)}
@@ -28,7 +28,7 @@ th.wk{color:#d33}th.dv{background:color-mix(in srgb,#e8a33d 28%,var(--bg))}.ws{b
 .r{outline:2px solid var(--r);outline-offset:-2px;background:var(--r)}
 .warn{color:#c33;margin:4px 0}.ok{color:#2a8a3a}.nt{color:var(--ac);margin:4px 0}
 </style></head><body>
-<h1>超級排班表</h1>
+<h1>超級排班表</h1><small>版本：PT 自訂時段版 2026-10-20</small>
 <div class="card">
 <label>排班區間 <input type="date" id="start" value="2026-11-01"> ～ <input type="date" id="end" value="2026-11-30"><span id="rangeInfo"></span></label><label>開檔日 <input type="date" id="opening" value="2026-11-01"><input type="hidden" id="days" value="30"></label>
 <label>禁休日（幾號，自動排休避開；指定休假優先） <input id="ban" placeholder="例：1,2,15"></label>
@@ -43,7 +43,7 @@ th.wk{color:#d33}th.dv{background:color-mix(in srgb,#e8a33d 28%,var(--bg))}.ws{b
 <label><input type="checkbox" id="mh"> 所有週六、日都不休</label>
 <label>店長不能休的日期（月/日或幾號） <input id="mban" placeholder="例：8,15,22"></label>
 <label><input type="checkbox" id="mbal" checked> 早晚班盡量平均（公司要求）</label>
-<small>固定規範：早 9-18／10點 10-19／晚 14-23；晚班隔天只能上10點或晚班；每天至少4人</small>
+<small>正職固定規範：早 9-18／10點 10-19／晚 14-23；晚班隔天只能上10點或晚班；每天至少4人</small>
 </div>
 <div class="card"><b>人員</b>
 <small>欄位：工號／角色／不想連上幾天（填4＝最多連上3天；上限7，依勞基法最多連上6天）／指定。指定寫法：休:11/5,11/6 早:11/10 晚:11/11。指定休假優先於禁休與店長限制，人力不足只警告；跨月建議填月/日。長假欄填日期或區間，如 11/28～12/3,12/5，標為「假」；一例一休一定另外標出，整週請假時會先從假日中標出例、休，其餘才標假。</small>
@@ -59,8 +59,11 @@ const def=()=>{const a=[{id:'店長',role:'店長',lim:4,sp:''},{id:'A01',role:'
 try{const s=JSON.parse(localStorage.getItem('sch')||'null');if(s){R=s.R||[];for(const k in s.f)if($('#'+k))$('#'+k).value=s.f[k];for(const k in s.c)if($('#'+k))$('#'+k).checked=s.c[k];if(!s.f.end){const a=new Date($('#start').value+'T00:00:00');a.setDate(a.getDate()+(+s.f.days||30)-1);$('#end').value=iso(a)};if(!s.f.opening)$('#opening').value=$('#start').value;if(!s.f.cycle)$('#cycle').value=$('#opening').value}}catch(e){}
 if(!R.length)R=def();
 function save(){try{const f={},c={};['start','end','opening','cycle','deliveryAdd','deliveryRemove','days','ban','big','bf','mban','hol','caltxt'].forEach(k=>f[k]=$('#'+k).value);['mo','mh','mw','mbal','major'].forEach(k=>c[k]=$('#'+k).checked);localStorage.setItem('sch',JSON.stringify({R,f,c}))}catch(e){}}
-function rr(){$('#cnt').textContent=['店長','值班','一般'].map(r=>r+R.filter(p=>p.role==r).length).join('／');if(document.activeElement!==$('#n'))$('#n').value=R.length;$('#ros').innerHTML=R.map((p,i)=>`<div class="rw"><input data-i="${i}" data-k="id" value="${esc(p.id)}" placeholder="工號"><select data-i="${i}" data-k="role">${['一般','值班','店長'].map(r=>`<option${r==p.role?' selected':''}>${r}</option>`).join('')}</select><input type="number" min="2" max="7" data-i="${i}" data-k="lim" value="${p.lim}"><input class="sp" data-i="${i}" data-k="sp" value="${esc(p.sp)}" placeholder="指定：休:5,6 早:10 晚:11"><input class="sp" data-i="${i}" data-k="lv" value="${esc(p.lv||'')}" placeholder="長假：11/28～12/3,12/5"></div>`).join('')}
-['input','change'].forEach(ev=>$('#ros').addEventListener(ev,e=>{const t=e.target,i=+t.dataset.i,k=t.dataset.k;if(k){R[i][k]=k=='lim'?(+t.value||4):t.value;if(k=='role')$('#cnt').textContent=['店長','值班','一般'].map(r=>r+R.filter(p=>p.role==r).length).join('／')}}));
+function ptEditor(p,i){return `<div class="sp ptbox"><b>上班時段</b><small>日期可填 3,5 或 7～8，跨月填 11/28～12/3。僅在填寫日期排班；時數上限為整段排班期間扣除休息的工作時數。18:00（含）起班算晚 PT。超過連上／每週5個工作日／時數上限時自動休息。</small>${(p.slots||[]).map((r,j)=>`<div class="ptrow"><input aria-label="日期或區間" data-person="${i}" data-slot="${j}" data-field="dates" value="${esc(r.dates||'')}" placeholder="日期：3,5 或 7～8"><input aria-label="開始時間" type="time" data-person="${i}" data-slot="${j}" data-field="start" value="${esc(r.start||'')}">～<input aria-label="結束時間" type="time" data-person="${i}" data-slot="${j}" data-field="end" value="${esc(r.end||'')}"><button type="button" class="s" data-del-slot="${j}" data-person="${i}">刪除</button></div>`).join('')}<button type="button" class="s" data-add-slot="${i}">＋新增時段</button><small>休息含在起訖時間內，每連續工作4小時後若繼續上班，安排30分鐘休息；剛好4小時下班不扣休息。休息時不計入可用人力。</small></div>`}
+$('#ros').addEventListener('input',e=>{const t=e.target;if(t.dataset.field){R[+t.dataset.person].slots[+t.dataset.slot][t.dataset.field]=t.value;save()}});
+$('#ros').addEventListener('click',e=>{const t=e.target;if(t.dataset.addSlot!==undefined){const p=R[+t.dataset.addSlot];(p.slots??=[]).push({dates:'',start:'',end:''});rr();save()}if(t.dataset.delSlot!==undefined){R[+t.dataset.person].slots.splice(+t.dataset.delSlot,1);rr();save()}});
+function rr(){$('#cnt').textContent=['店長','值班','一般','PT'].map(r=>r+R.filter(p=>p.role==r).length).join('／');if(document.activeElement!==$('#n'))$('#n').value=R.length;$('#ros').innerHTML=R.map((p,i)=>`<div class="rw"><input data-i="${i}" data-k="id" value="${esc(p.id)}" placeholder="工號"><select data-i="${i}" data-k="role">${['一般','值班','店長','PT'].map(r=>`<option${r==p.role?' selected':''}>${r}</option>`).join('')}</select><input type="number" min="2" max="7" data-i="${i}" data-k="lim" value="${p.lim}">${p.role==='PT'?`<label>時數上限 <input aria-label="PT時數上限" type="number" min="0" step="0.5" data-i="${i}" data-k="cap" value="${esc(p.cap??'')}" placeholder="不限"></label>`:''}<input class="sp" data-i="${i}" data-k="sp" value="${esc(p.sp)}" placeholder="指定：休:5,6 早:10 晚:11"><input class="sp" data-i="${i}" data-k="lv" value="${esc(p.lv||'')}" placeholder="長假：11/28～12/3,12/5">${p.role==='PT'?ptEditor(p,i):''}</div>`).join('')}
+['input','change'].forEach(ev=>$('#ros').addEventListener(ev,e=>{const t=e.target,i=+t.dataset.i,k=t.dataset.k;if(k){R[i][k]=k=='lim'?(+t.value||4):t.value;if(k=='role'&&ev==='change')rr();save()}}));
 $('#n').oninput=()=>{const v=+$('#n').value;if(v>R.length&&v<=30)$('#n').onchange()};$('#n').onchange=()=>{const n=Math.max(1,Math.min(30,+$('#n').value||1));while(R.length<n)R.push({id:'A'+String(R.length+1).padStart(2,'0'),role:'一般',lim:4,sp:''});R.length=n;rr()};
 rr();
 const LV=['假','年假','事假','喪假','病假','婚假','公假','生理假'],isO=v=>v=='休'||v=='例'||v=='國'||v=='補'||LV.includes(v);
@@ -79,13 +82,13 @@ function leave(t){const a=new Set(dateMatches(t));return days.map((_,k)=>a.has(k
 const shuf=a=>{for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
 const combos=(a,k)=>k<=0?[[]]:k==1?a.map(x=>[x]):a.flatMap((x,i)=>a.slice(i+1).map(y=>[x,y]));
 function attempt(){
- const D=days.length,N=P.length,supN=P.filter(p=>p.sup).length,mo=$('#mo').checked,mh=$('#mh').checked,mw=$('#mw').checked,mb=new Set(dateMatches($('#mban').value));
- const off=P.map(p=>days.map((d,k)=>p.sp.off.includes(k)||p.lv[k]?1:0)),oc=Array(D).fill(0),so=Array(D).fill(0);
- P.forEach((p,i)=>off[i].forEach((v,k)=>{if(v){oc[k]++;if(p.sup)so[k]++}}));
+ const D=days.length,N=P.filter(p=>p.role!=='PT').length,supN=P.filter(p=>p.sup).length,mo=$('#mo').checked,mh=$('#mh').checked,mw=$('#mw').checked,mb=new Set(dateMatches($('#mban').value));
+ const off=P.map(p=>days.map((d,k)=>p.role==='PT'||p.sp.off.includes(k)||p.lv[k]?1:0)),oc=Array(D).fill(0),so=Array(D).fill(0);
+ P.forEach((p,i)=>off[i].forEach((v,k)=>{if(v&&p.role!=='PT'){oc[k]++;if(p.sup)so[k]++}}));
  for(const w of weeks){
   const need=w.length>=7?2:w.length>=4?1:0;
   for(const i of shuf(P.map((_,i)=>i))){
-   const p=P[i],k0=Math.max(0,need-w.filter(k=>off[i][k]&&!p.lv[k]).length);if(!k0)continue;
+   const p=P[i];if(p.role==='PT')continue;const k0=Math.max(0,need-w.filter(k=>off[i][k]&&!p.lv[k]).length);if(!k0)continue;
    const al=w.filter(k=>{const d=days[k];return !off[i][k]&&!ban.has(k)&&!p.sp.E.includes(k)&&!p.sp.L.includes(k)&&!(p.role=='店長'&&((mo&&dayISO(days[k])==$('#opening').value)||(mh&&(d.wd==0||d.wd==6))||mb.has(k)||(mw&&sameWeek(days[k],$('#opening').value)&&(d.wd==0||d.wd==6))))});
    let bc=[],bv=1e9;
    for(const c of combos(al,Math.min(k0,al.length))){
@@ -97,7 +100,7 @@ function attempt(){
    for(const k of bc){off[i][k]=1;oc[k]++;if(p.sup)so[k]++}
   }}
  if(hol.size){const okd=(p,k)=>{const d=days[k];return !ban.has(k)&&!hol.has(k)&&!p.sp.E.includes(k)&&!p.sp.L.includes(k)&&!(p.role=='店長'&&((mo&&dayISO(days[k])==$('#opening').value)||(mh&&(d.wd==0||d.wd==6))||mb.has(k)||(mw&&sameWeek(days[k],$('#opening').value)&&(d.wd==0||d.wd==6))))};
-for(const w of weeks)for(const i of shuf(P.map((_,i)=>i))){const p=P[i];let ex=w.filter(k=>hol.has(k)&&off[i][k]&&!p.lv[k]).length;
+for(const w of weeks)for(const i of shuf(P.map((_,i)=>i))){const p=P[i];if(p.role==='PT')continue;let ex=w.filter(k=>hol.has(k)&&off[i][k]&&!p.lv[k]).length;
  while(ex-->0){let bk=-1,bv=1e9;for(const k of w){if(off[i][k]||!okd(p,k))continue;
   let v=Math.random()*2+oc[k]*3;const wk=N-oc[k]-1,fl=big.has(k)?Math.max(4,Math.min(bf,N)):4;if(wk<fl)v+=100*(fl-wk);if(p.sup&&supN-so[k]-1<2)v+=100;
   off[i][k]=1;let r=0;off[i].forEach(x=>{r=x?0:r+1;if(r>p.lim-1)v+=60});off[i][k]=0;
@@ -128,21 +131,33 @@ function assign(off){
  });
  P.forEach((p,i)=>weeks.forEach(w=>{const nd=w.length>=7?2:w.length>=4?1:0,cd=w.filter(k=>off[i][k]&&!p.lv[k]&&!hol.has(k)),r=cd.slice(0,nd),ex=w.filter(k=>hol.has(k)&&off[i][k]&&!p.lv[k]).length;w.filter(k=>p.lv[k]&&!hol.has(k)).sort((a,b)=>((days[a].wd%6?1:0)-(days[b].wd%6?1:0))||a-b).slice(0,Math.max(0,nd-r.length)).forEach(k=>r.push(k));r.sort((a,b)=>a-b);w.forEach(k=>{if(off[i][k])sh[i][k]=hol.has(k)?'國':p.lv[k]?'假':'休'});r.forEach((k,j)=>sh[i][k]=j==r.length-1?'例':'休')}));
  return{sh,warns}}
+function timeMinute(v){if(!/^\d{2}:\d{2}$/.test(v||''))return NaN;const [h,m]=v.split(':').map(Number);return h<24&&m<60?h*60+m:NaN}
+function ptBreaks(total){let work=0,rest=0,left=total;while(left>240){work+=240;left-=240;rest+=30;left-=30}return {work:work+left,rest}}
+function ptMinutes(v){const a=String(v).split('–');return a.length===2?ptBreaks(timeMinute(a[1])-timeMinute(a[0])).work:0}
+function ptClass(v){return /^\d{2}:\d{2}–\d{2}:\d{2}$/.test(v)?(timeMinute(v.slice(0,5))>=1080?'晚 PT':'早 PT'):''}
+function ptDetail(v){const [a,b]=v.split('–').map(timeMinute);let t=a,parts=[];const clock=n=>String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0');while(b-t>240){t=Math.min(t+240,b-30);const e=t+30;parts.push(clock(t)+'～'+clock(e));t=e}return '工作 '+fmtMinutes(ptMinutes(v))+'；'+(parts.length?'休息 '+parts.join('、'):'無需另排休息')}
+function fmtMinutes(m){return Math.floor(m/60)+'小時'+(m%60?m%60+'分':'')}
+function applyPT(sh,warns){P.forEach((p,i)=>{if(p.role!=='PT')return;const candidates=new Map();let used=0;const cap=p.cap===''||p.cap==null?Infinity:Number(p.cap)*60;if(!Number.isFinite(cap)&&cap!==Infinity||cap<0){warns.push(`${p.id}：時數上限無效，未安排 PT`);sh[i]=days.map(()=> '休');return}
+(p.slots||[]).forEach((r,j)=>{if(!r.dates&&!r.start&&!r.end)return;const a=timeMinute(r.start),b=timeMinute(r.end),ks=dateMatches(r.dates);if(!Number.isFinite(a)||!Number.isFinite(b)||b<=a||b-a<30||!ks.length){warns.push(`${p.id}：第${j+1}筆時段無效或日期不在排班區間（暫不支援跨夜），未套用`);return}for(const k of ks){if(candidates.has(k)){warns.push(`${p.id} ${days[k].m}/${days[k].dom}：多筆時段重複，以第一筆為準`);continue}candidates.set(k,{a,b,text:r.start+'–'+r.end})}});
+let run=0;const counts=new Map();sh[i]=days.map((d,k)=>{const r=candidates.get(k),w=weeks.findIndex(w=>w.includes(k));if(!r||p.sp.off.includes(k)||p.lv[k]){if(r&&(p.sp.off.includes(k)||p.lv[k]))warns.push(`${p.id} ${d.m}/${d.dom}：上班時段與指定休假衝突，休假優先`);run=0;return p.lv[k]?'假':'休'}const mins=ptBreaks(r.b-r.a).work;if(used+mins>cap||run>=p.lim-1||(counts.get(w)||0)>=5){run=0;return '休'}used+=mins;run++;counts.set(w,(counts.get(w)||0)+1);return r.text});
+weeks.forEach(w=>{const rests=w.filter(k=>isO(sh[i][k]));if(rests.length)sh[i][rests[rests.length-1]]='例'});
+if(!candidates.size)warns.push(`${p.id}：未設定有效上班時段，全部休息`);
+})}
 function gen(again){
  if(!prepareDays())return;
- ban=new Set(dateMatches($('#ban').value));big=new Set(dateMatches($('#big').value));bf=+$('#bf').value||4;hol=new Set(dateMatches($('#hol').value));dw=days.map((d,k)=>isDelivery(k));mbal=$('#mbal').checked;P=R.map(p=>({...p,sup:p.role!='一般',sp:spec(p.sp),lv:leave(p.lv),lim:Math.min(7,Math.max(2,+p.lim||4))}));
+ ban=new Set(dateMatches($('#ban').value));big=new Set(dateMatches($('#big').value));bf=+$('#bf').value||4;hol=new Set(dateMatches($('#hol').value));dw=days.map((d,k)=>isDelivery(k));mbal=$('#mbal').checked;P=R.map(p=>({...p,sup:['值班','店長'].includes(p.role),sp:spec(p.sp),lv:leave(p.lv),lim:Math.min(7,Math.max(2,+p.lim||4))}));
  weeks=[];days.forEach((d,k)=>{if(!k||d.wd==0)weeks.push([]);weeks[weeks.length-1].push(k)});
  let b=null;for(let t=0;t<400;t++){const o=attempt();if(!b||o.sc<b.sc)b=o}
- const{sh,warns}=assign(b.off);last=sh;save();P.forEach((p,i)=>weeks.forEach(w=>{const nd=w.length>=7?2:w.length>=4?1:0,c=w.filter(k=>sh[i][k]=='例'||sh[i][k]=='休').length;if(c<nd)warns.push(`${p.id}：${days[w[0]].m}/${days[w[0]].dom}起這週一例一休不足（禁休、店長限制或長假衝突）`)}));if(mbal)P.forEach((p,i)=>{if(p.role=='店長'){const e=sh[i].filter(v=>v=='早'||v=='10').length,l=sh[i].filter(v=>v=='晚').length;if(Math.abs(e-l)>2)warns.push(`${p.id}（店長）早${e}天晚${l}天，差距偏大（公司要求盡量平均）`)}});
+ const{sh,warns}=assign(b.off);applyPT(sh,warns);last=sh;save();P.forEach((p,i)=>weeks.forEach(w=>{const nd=w.length>=7?2:w.length>=4?1:0,c=w.filter(k=>sh[i][k]=='例'||sh[i][k]=='休').length;if(c<nd)warns.push(`${p.id}：${days[w[0]].m}/${days[w[0]].dom}起這週一例一休不足（禁休、店長限制或長假衝突）`)}));if(mbal)P.forEach((p,i)=>{if(p.role=='店長'){const e=sh[i].filter(v=>v=='早'||v=='10').length,l=sh[i].filter(v=>v=='晚').length;if(Math.abs(e-l)>2)warns.push(`${p.id}（店長）早${e}天晚${l}天，差距偏大（公司要求盡量平均）`)}});
  const D=days.length;
  P.forEach((p,i)=>{let r=0;sh[i].forEach((v,k)=>{r=isO(v)?0:r+1;if(r>p.lim-1)warns.push(`${p.id}：${days[k].m}/${days[k].dom}起連上${r}天，超過上限`)})});
- for(let k=0;k<D;k++){const n=P.filter((_,i)=>!isO(sh[i][k])).length;const fl=big.has(k)?Math.max(4,Math.min(bf,P.length)):4;if(n<fl)warns.push(`${days[k].m}/${days[k].dom}只有${n}人上班（低於${fl}人${fl>4?'，大到貨底線':''}）`)}
+ for(let k=0;k<D;k++){const n=P.filter((p,i)=>p.role!=='PT'&&!isO(sh[i][k])).length;const fl=big.has(k)?Math.max(4,Math.min(bf,P.filter(p=>p.role!=='PT').length)):4;if(n<fl)warns.push(`${days[k].m}/${days[k].dom}只有${n}人上班（低於${fl}人${fl>4?'，大到貨底線':''}）`)}
  $('#warn').innerHTML=warns.length?[...new Set(warns)].map(w=>`<div class="warn">⚠ ${esc(w)}</div>`).join(''):'<div class="ok">✓ 所有規則皆已滿足</div>';
  let h=`<h2>班表</h2><div class="sc"><table><tr><th class="nm">工號</th><th>早</th><th>晚</th><th>假</th>${days.map((d,k)=>`<th class="${d.wd%6?'':'wk'}${dw[k]?' dv':''}${k&&d.wd==0?' ws':''}">${d.m}/${d.dom}<br>${WD[d.wd]}${ban.has(k)?'<br>禁':big.has(k)?'<br>貨':hol.has(k)?'<br>國':''}</th>`).join('')}</tr>`;
- P.forEach((p,i)=>{let r=0;h+=`<tr><th class="nm">${esc(p.id)}${p.sup?`<small>${p.role}</small>`:''}</th><td><b>${sh[i].filter(v=>v=='早'||v=='10').length}</b></td><td><b>${sh[i].filter(v=>v=='晚').length}</b></td><td>${sh[i].filter(v=>LV.includes(v)).length}</td>`+days.map((d,k)=>{const v=sh[i][k],o=isO(v);r=o?0:r+1;return`<td data-i="${i}" data-k="${k}" class="${CL[v]||(LV.includes(v)?'o v':'')}${r>p.lim-1?' r':''}${k&&d.wd==0?' ws':''}">${v}</td>`}).join('')+'</tr>'});
- ['早','晚'].forEach(z=>h+=`<tr><th class="nm">${z}人數</th><td></td><td></td><td></td>${days.map((d,k)=>`<td class="${k&&d.wd==0?'ws':''}">${P.filter((_,i)=>z=='早'?(sh[i][k]=='早'||sh[i][k]=='10'):sh[i][k]=='晚').length}</td>`).join('')}</tr>`);
- h+='</table></div><h2>統計</h2><div class="sc"><table><tr><th>工號</th><th>早+10點</th><th>其中10點</th><th>晚</th><th>休/例</th><th>假</th></tr>'+P.map((p,i)=>{const c=x=>sh[i].filter(v=>x.includes(v)).length;return`<tr><td>${esc(p.id)}</td><td>${c(['早','10'])}</td><td>${c(['10'])}</td><td>${c(['晚'])}</td><td>${c(['休','例'])}</td><td>${c(LV)}</td></tr>`}).join('')+'</table></div><small>黃＝早班9-18　紫＝10點班10-19（晚接早只能上這班）　藍＝晚班14-23　灰＝休/例　紅框＝超過連上上限　禁＝禁休日（指定休假優先）　貨＝大到貨日（人力底線）　綠＝長假（點一下可切換年假/事假/喪假/病假/婚假/公假/生理假）　國＝國定假日休（有休的人該週為國、例、休3天）　橘底表頭＝實際到貨日（固定週四五六日＋新增－刪除）。禮拜日到禮拜六為一週，粗線為週起點；不足7天的畸零週只排1天休。</small>';
- $('#out').innerHTML=h;showCal()}
+ P.forEach((p,i)=>{let r=0;h+=`<tr><th class="nm">${esc(p.id)}${p.sup||p.role==='PT'?`<small>${p.role}</small>`:''}</th><td><b>${sh[i].filter(v=>v=='早'||v=='10').length}</b></td><td><b>${sh[i].filter(v=>v=='晚').length}</b></td><td>${sh[i].filter(v=>LV.includes(v)).length}</td>`+days.map((d,k)=>{const v=sh[i][k],o=isO(v);r=o?0:r+1;return`<td title="${ptClass(v)?esc(ptDetail(v)):""}" data-i="${i}" data-k="${k}" class="${CL[v]||(LV.includes(v)?'o v':ptClass(v)==='晚 PT'?'l':ptClass(v)==='早 PT'?'e':'')}${r>p.lim-1?' r':''}${k&&d.wd==0?' ws':''}">${esc(v)}</td>`}).join('')+'</tr>'});
+ ['早','晚',...(['早 PT','晚 PT'].filter(z=>P.some((p,i)=>p.role==='PT'&&sh[i].some(v=>ptClass(v)===z))))].forEach(z=>h+=`<tr><th class="nm">${z}人數</th><td></td><td></td><td></td>${days.map((d,k)=>`<td class="${k&&d.wd==0?'ws':''}">${(z.includes('PT')?(P.filter((p,i)=>p.role==='PT'&&ptClass(sh[i][k])===z).length||''):P.filter((p,i)=>p.role!=='PT'&&(z==='早'?(sh[i][k]==='早'||sh[i][k]==='10'):sh[i][k]==='晚')).length)}</td>`).join('')}</tr>`);
+ h+='</table></div><h2>統計</h2><div class="sc"><table><tr><th>工號</th><th>早+10點</th><th>其中10點</th><th>晚</th><th>休/例</th><th>假</th><th>PT 工作時數／上限</th></tr>'+P.map((p,i)=>{const c=x=>sh[i].filter(v=>x.includes(v)).length;return`<tr><td>${esc(p.id)}</td><td>${c(['早','10'])}</td><td>${c(['10'])}</td><td>${c(['晚'])}</td><td>${c(['休','例'])}</td><td>${c(LV)}</td><td>${p.role==='PT'?`${fmtMinutes(sh[i].reduce((n,v)=>n+ptMinutes(v),0))}／${p.cap!==''&&p.cap!=null?esc(p.cap)+'小時':'不限'}`:'—'}</td></tr>`}).join('')+'</table></div><small>黃＝早班9-18　紫＝10點班10-19（晚接早只能上這班）　藍＝晚班14-23　灰＝休/例　紅框＝超過連上上限　禁＝禁休日（指定休假優先）　貨＝大到貨日（人力底線）　綠＝長假（點一下可切換年假/事假/喪假/病假/婚假/公假/生理假）　國＝國定假日休（有休的人該週為國、例、休3天）　橘底表頭＝實際到貨日（固定週四五六日＋新增－刪除）。禮拜日到禮拜六為一週，粗線為週起點；不足7天的畸零週只排1天休。</small>';
+ h+='<div class="card"><b>PT 時數與休息明細</b>'+P.map((p,i)=>p.role==='PT'?'<div><b>'+esc(p.id)+'</b>'+sh[i].map((v,k)=>ptClass(v)?'<small>'+days[k].m+'/'+days[k].dom+' '+v+'｜'+ptDetail(v)+'</small>':'').join('')+'</div>':'').join('')+'<small>PT 與正職分開統計；每日4人及大到貨人力底線目前保守以正職完整班別檢查，PT 不抵整班人力。</small></div>';$('#out').innerHTML=h;showCal()}
 $('#go').onclick=gen;$('#re').onclick=gen;
 const KW=[[/專案[週周]/,'專案週','n'],[/換檔[週周]/,'換檔週','n'],[/第一單/,'第一單','n'],[/偷跑/,'偷跑','p'],[/延檔/,'延檔','p'],[/空檔/,'空檔','p'],[/pop/i,'POP日','r'],[/換季/,'換季','r']];
 function parseCal(t){const ev=[],D=(y,m,d)=>new Date(+y,m-1,+d);
